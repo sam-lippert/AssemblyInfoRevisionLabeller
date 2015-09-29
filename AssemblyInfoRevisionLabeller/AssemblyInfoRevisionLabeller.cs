@@ -41,7 +41,7 @@ namespace CCNet.AssemblyInfoRevisionLabeller.Plugin
                 throw new Exception($"Could not read revision from {(svn ? "svn" : "git")} working copy <{WorkingDirectory}>: {revision}");
             }
 
-            return new Version(Math.Max(1, version.Major),
+            return new Version(Math.Max(0, version.Major),
                                Math.Max(0, version.Minor),
                                Math.Max(0, version.Build),
                                revNum)
