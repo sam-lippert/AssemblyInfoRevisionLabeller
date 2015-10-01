@@ -15,13 +15,30 @@ namespace CCNet.AssemblyInfoRevisionLabeller.Plugin
         {
             Regex regex = new Regex(Pattern);
 
-            string content = string.Join(Environment.NewLine, File.ReadAllLines(Path).Where(l => !l.Trim().StartsWith("//")).ToArray());
-            string revision = Exec("git", "rev-list --count HEAD", WorkingDirectory);
-            bool svn = false;
-            if (string.IsNullOrEmpty(revision))
+            string content = string.Join(Environment.NewLine,
+                File.ReadAllLines(Path).Where(l => !l.Trim().StartsWith("//")).ToArray());
+
+            if (WorkingDirectory == null)
             {
+                var assemblyInfoFolder = new FileInfo(Path).Directory;
+                if (assemblyInfoFolder?.Name == "Properties")
+                {
+                    assemblyInfoFolder = assemblyInfoFolder.Parent;
+                }
+                WorkingDirectory = assemblyInfoFolder?.FullName;
+            }
+
+            string revision = Exec("git", "rev-list --count HEAD", WorkingDirectory);
+            bool svn = string.IsNullOrEmpty(revision);
+            if (svn)
+            {
+                if (AutoGetSource) Exec("svn", "update", WorkingDirectory);
                 revision = Exec("svn", "info --show-item revision", WorkingDirectory);
-                svn = true;
+            }
+            else if (AutoGetSource)
+            {
+                Exec("git", "pull", WorkingDirectory);
+                revision = Exec("git", "rev-list --count HEAD", WorkingDirectory);
             }
 
             var versionMatch = regex.Match(content).Groups["version"].Value.TrimEnd('.', '*');
@@ -56,8 +73,11 @@ namespace CCNet.AssemblyInfoRevisionLabeller.Plugin
         [ReflectorProperty("path", Required = true)]
         public string Path { get; set; }
 
-        [ReflectorProperty("workingDirectory", Required = true)]
+        [ReflectorProperty("workingDirectory", Required = false)]
         public string WorkingDirectory { get; set; }
+
+        [ReflectorProperty("autoGetSource", Required = false)]
+        public bool AutoGetSource { get; set; }
 
         [ReflectorProperty("pattern", Required = false)]
         public string Pattern { get; set; } = @"AssemblyVersion\(""(?<version>[^\""]*)""\)";
